@@ -9,7 +9,9 @@ import com.nisuev.dips.gatewayservice.resilience.DownstreamCalls;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -21,29 +23,27 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TicketRepository {
 
-    private static final String USER_HEADER = "X-User-Name";
-
     private final RestTemplate restTemplate;
     private final ServiceUrlsConfig urls;
 
-    @CircuitBreaker(name = "ticket", fallbackMethod = "findAllByUsernameFallback")
-    public List<TicketInternalResponse> findAllByUsername(String username) {
+    @CircuitBreaker(name = "ticket", fallbackMethod = "findAllFallback")
+    public List<TicketInternalResponse> findAll() {
         ResponseEntity<List<TicketInternalResponse>> response = restTemplate.exchange(
                 urls.getTicketUrl() + "/api/v1/tickets",
                 HttpMethod.GET,
-                new HttpEntity<>(headers(username)),
+                null,
                 new ParameterizedTypeReference<>() {}
         );
         return response.getBody();
     }
 
-    @CircuitBreaker(name = "ticket", fallbackMethod = "findByUidAndUsernameFallback")
-    public TicketInternalResponse findByUidAndUsername(UUID ticketUid, String username) {
+    @CircuitBreaker(name = "ticket", fallbackMethod = "findByUidFallback")
+    public TicketInternalResponse findByUid(UUID ticketUid) {
         try {
             ResponseEntity<TicketInternalResponse> response = restTemplate.exchange(
                     urls.getTicketUrl() + "/api/v1/tickets/" + ticketUid,
                     HttpMethod.GET,
-                    new HttpEntity<>(headers(username)),
+                    null,
                     TicketInternalResponse.class
             );
             return response.getBody();
@@ -52,25 +52,25 @@ public class TicketRepository {
         }
     }
 
-    public TicketInternalResponse create(String username, TicketCreateRequest request) {
+    public TicketInternalResponse create(TicketCreateRequest request) {
         return DownstreamCalls.write(Downstream.TICKET, () -> {
             ResponseEntity<TicketInternalResponse> response = restTemplate.exchange(
                     urls.getTicketUrl() + "/api/v1/tickets",
                     HttpMethod.POST,
-                    new HttpEntity<>(request, jsonHeaders(username)),
+                    new HttpEntity<>(request),
                     TicketInternalResponse.class
             );
             return response.getBody();
         });
     }
 
-    public void cancel(UUID ticketUid, String username) {
+    public void cancel(UUID ticketUid) {
         DownstreamCalls.write(Downstream.TICKET, () -> {
             try {
                 restTemplate.exchange(
                         urls.getTicketUrl() + "/api/v1/tickets/" + ticketUid,
                         HttpMethod.DELETE,
-                        new HttpEntity<>(headers(username)),
+                        null,
                         Void.class
                 );
             } catch (HttpClientErrorException.NotFound e) {
@@ -80,23 +80,11 @@ public class TicketRepository {
         });
     }
 
-    private List<TicketInternalResponse> findAllByUsernameFallback(String username, Throwable cause) {
+    private List<TicketInternalResponse> findAllFallback(Throwable cause) {
         throw DownstreamCalls.fallback(Downstream.TICKET, cause);
     }
 
-    private TicketInternalResponse findByUidAndUsernameFallback(UUID ticketUid, String username, Throwable cause) {
+    private TicketInternalResponse findByUidFallback(UUID ticketUid, Throwable cause) {
         throw DownstreamCalls.fallback(Downstream.TICKET, cause);
-    }
-
-    private HttpHeaders headers(String username) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set(USER_HEADER, username);
-        return headers;
-    }
-
-    private HttpHeaders jsonHeaders(String username) {
-        HttpHeaders headers = headers(username);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return headers;
     }
 }

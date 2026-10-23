@@ -1,13 +1,25 @@
 name: GitHub Classroom Workflow
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+env:
+  VARIANT: v1
+  NAMESPACE: test
+  DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+  TAG: ${{ github.sha }}
+
 jobs:
   build:
     name: Autograding
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -62,6 +74,9 @@ jobs:
           kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
           helm upgrade --install postgres charts/postgres -n $NAMESPACE --wait --timeout 3m
 
+      - name: Deploy keycloak
+        run: helm upgrade --install keycloak charts/keycloak -n $NAMESPACE --wait --timeout 5m
+
       - name: Deploy services
         run: |
           for svc in flight-service ticket-service bonus-service gateway-service; do
@@ -79,12 +94,12 @@ jobs:
         run: |
           IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo "Ingress: $IP"
-          sed -i "s#http://localhost:8080#http://$IP#" $VARIANT/postman/environment.json
-      
+          sed -i "s#http://localhost:8080#http://$IP#; s#http://localhost:8180#http://$IP#" $VARIANT/postman/environment.json
+
       - name: Run API Tests
         uses: matt-ball/newman-action@master
         with:
-          collection: <variant>/postman/collection.json
-          environment: <variant>/postman/environment.json
+          collection: ${{ env.VARIANT }}/postman/collection.json
+          environment: ${{ env.VARIANT }}/postman/environment.json
           delayRequest: 100
           reporters: '[ "cli" ]'

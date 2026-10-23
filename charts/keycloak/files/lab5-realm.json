@@ -1,0 +1,39 @@
+{
+  "realm": "lab5",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "accessTokenLifespan": 900,
+  "clients": [
+    {
+      "clientId": "flight-booking",
+      "name": "Flight Booking System",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "flight-booking-secret",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "test-max",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Max",
+      "email": "test-max@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test-max-password",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

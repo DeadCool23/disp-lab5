@@ -2,5 +2,6 @@ appName: flight
 port: 8060
 image:
   repository: DOCKER_USER/flight-service
+env:
   JAVA_TOOL_OPTIONS: "-Xmx256m -XX:TieredStopAtLevel=1 -XX:+UseSerialGC -Xshare:auto"
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/flights

@@ -16,6 +16,8 @@ public class AppConfig {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(connectTimeoutMs);
         factory.setReadTimeout(readTimeoutMs);
-        return new RestTemplate(factory);
+        RestTemplate restTemplate = new RestTemplate(factory);
+        restTemplate.getInterceptors().add(new BearerTokenInterceptor());
+        return restTemplate;
     }
 }

@@ -4,32 +4,32 @@
 	"values": [
 		{
 			"key": "serviceUrl",
-			"value": "",
+			"value": "http://localhost:8080",
 			"enabled": true
 		},
 		{
 			"key": "identityProviderUrl",
-			"value": "",
+			"value": "http://localhost:8180/realms/lab5",
 			"enabled": true
 		},
 		{
 			"key": "username",
-			"value": "",
+			"value": "test-max",
 			"enabled": true
 		},
 		{
 			"key": "password",
-			"value": "",
+			"value": "test-max-password",
 			"enabled": true
 		},
 		{
 			"key": "clientId",
-			"value": "",
+			"value": "flight-booking",
 			"enabled": true
 		},
 		{
 			"key": "clientSecret",
-			"value": "",
+			"value": "flight-booking-secret",
 			"enabled": true
 		}
 	],

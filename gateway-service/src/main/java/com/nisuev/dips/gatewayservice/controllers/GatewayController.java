@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -35,45 +34,39 @@ public class GatewayController {
 
     @GetMapping("/privilege")
     @Operation(summary = "Получить информацию о состоянии бонусного счета")
-    public ResponseEntity<PrivilegeInfoResponse> getPrivilege(
-            @RequestHeader("X-User-Name") @NotBlank String username) {
-        return ResponseEntity.ok(gatewayService.getPrivilege(username));
+    public ResponseEntity<PrivilegeInfoResponse> getPrivilege() {
+        return ResponseEntity.ok(gatewayService.getPrivilege());
     }
 
     @GetMapping("/tickets")
     @Operation(summary = "Информация по всем билетам пользователя")
-    public ResponseEntity<List<TicketResponse>> getTickets(
-            @RequestHeader("X-User-Name") @NotBlank String username) {
-        return ResponseEntity.ok(gatewayService.getTickets(username));
+    public ResponseEntity<List<TicketResponse>> getTickets() {
+        return ResponseEntity.ok(gatewayService.getTickets());
     }
 
     @GetMapping("/tickets/{ticketUid}")
     @Operation(summary = "Информация по конкретному билету")
-    public ResponseEntity<TicketResponse> getTicket(@PathVariable UUID ticketUid,
-                                                    @RequestHeader("X-User-Name") @NotBlank String username) {
-        return ResponseEntity.ok(gatewayService.getTicket(ticketUid, username));
+    public ResponseEntity<TicketResponse> getTicket(@PathVariable UUID ticketUid) {
+        return ResponseEntity.ok(gatewayService.getTicket(ticketUid));
     }
 
     @PostMapping("/tickets")
     @Operation(summary = "Покупка билета")
     public ResponseEntity<TicketPurchaseResponse> purchase(
-            @RequestHeader("X-User-Name") @NotBlank String username,
             @Valid @RequestBody TicketPurchaseRequest request) {
-        return ResponseEntity.ok(gatewayService.purchase(username, request));
+        return ResponseEntity.ok(gatewayService.purchase(request));
     }
 
     @DeleteMapping("/tickets/{ticketUid}")
     @Operation(summary = "Возврат билета")
-    public ResponseEntity<Void> cancel(@PathVariable UUID ticketUid,
-                                       @RequestHeader("X-User-Name") @NotBlank String username) {
-        gatewayService.cancelTicket(ticketUid, username);
+    public ResponseEntity<Void> cancel(@PathVariable UUID ticketUid) {
+        gatewayService.cancelTicket(ticketUid);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")
     @Operation(summary = "Информация о пользователе")
-    public ResponseEntity<UserInfoResponse> me(
-            @RequestHeader("X-User-Name") @NotBlank String username) {
-        return ResponseEntity.ok(gatewayService.getUserInfo(username));
+    public ResponseEntity<UserInfoResponse> me() {
+        return ResponseEntity.ok(gatewayService.getUserInfo());
     }
 }

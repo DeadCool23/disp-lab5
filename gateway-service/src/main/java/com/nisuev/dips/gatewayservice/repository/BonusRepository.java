@@ -8,7 +8,9 @@ import com.nisuev.dips.gatewayservice.resilience.Downstream;
 import com.nisuev.dips.gatewayservice.resilience.DownstreamCalls;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -19,41 +21,39 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BonusRepository {
 
-    private static final String USER_HEADER = "X-User-Name";
-
     private final RestTemplate restTemplate;
     private final ServiceUrlsConfig urls;
 
     @CircuitBreaker(name = "bonus", fallbackMethod = "getPrivilegeFallback")
-    public PrivilegeInfoResponse getPrivilege(String username) {
+    public PrivilegeInfoResponse getPrivilege() {
         ResponseEntity<PrivilegeInfoResponse> response = restTemplate.exchange(
                 urls.getBonusUrl() + "/api/v1/privilege",
                 HttpMethod.GET,
-                new HttpEntity<>(headers(username)),
+                null,
                 PrivilegeInfoResponse.class
         );
         return response.getBody();
     }
 
-    public PrivilegeApplyResponse apply(String username, PrivilegeApplyRequest request) {
+    public PrivilegeApplyResponse apply(PrivilegeApplyRequest request) {
         return DownstreamCalls.write(Downstream.BONUS, () -> {
             ResponseEntity<PrivilegeApplyResponse> response = restTemplate.exchange(
                     urls.getBonusUrl() + "/api/v1/privilege",
                     HttpMethod.POST,
-                    new HttpEntity<>(request, jsonHeaders(username)),
+                    new HttpEntity<>(request),
                     PrivilegeApplyResponse.class
             );
             return response.getBody();
         });
     }
 
-    public void rollback(String username, UUID ticketUid) {
+    public void rollback(UUID ticketUid) {
         DownstreamCalls.write(Downstream.BONUS, () -> {
             try {
                 restTemplate.exchange(
                         urls.getBonusUrl() + "/api/v1/privilege?ticketUid=" + ticketUid,
                         HttpMethod.DELETE,
-                        new HttpEntity<>(headers(username)),
+                        null,
                         Void.class
                 );
             } catch (HttpClientErrorException.NotFound ignored) {
@@ -62,19 +62,7 @@ public class BonusRepository {
         });
     }
 
-    private PrivilegeInfoResponse getPrivilegeFallback(String username, Throwable cause) {
+    private PrivilegeInfoResponse getPrivilegeFallback(Throwable cause) {
         throw DownstreamCalls.fallback(Downstream.BONUS, cause);
-    }
-
-    private HttpHeaders headers(String username) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set(USER_HEADER, username);
-        return headers;
-    }
-
-    private HttpHeaders jsonHeaders(String username) {
-        HttpHeaders headers = headers(username);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return headers;
     }
 }

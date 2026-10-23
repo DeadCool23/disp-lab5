@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -23,13 +24,13 @@ public class PrivilegeController {
 
     @GetMapping
     @Operation(summary = "Информация о бонусном счёте")
-    public ResponseEntity<PrivilegeInfoResponse> getInfo(@RequestHeader("X-User-Name") String username) {
+    public ResponseEntity<PrivilegeInfoResponse> getInfo(@AuthenticationPrincipal(expression = "claims['preferred_username']") String username) {
         return ResponseEntity.ok(privilegeService.getInfo(username));
     }
 
     @PostMapping
     @Operation(summary = "Начисление или списание бонусов при покупке")
-    public ResponseEntity<PrivilegeApplyResponse> apply(@RequestHeader("X-User-Name") String username,
+    public ResponseEntity<PrivilegeApplyResponse> apply(@AuthenticationPrincipal(expression = "claims['preferred_username']") String username,
                                                         @RequestBody PrivilegeApplyRequest request) {
         return ResponseEntity.ok(privilegeService.apply(username, request));
     }
@@ -38,7 +39,7 @@ public class PrivilegeController {
     @Operation(summary = "Откат бонусной операции по билету")
     @ApiResponse(responseCode = "204", description = "Откат выполнен")
     @ApiResponse(responseCode = "404", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    public ResponseEntity<Void> rollback(@RequestHeader("X-User-Name") String username,
+    public ResponseEntity<Void> rollback(@AuthenticationPrincipal(expression = "claims['preferred_username']") String username,
                                          @RequestParam UUID ticketUid) {
         privilegeService.rollback(username, ticketUid);
         return ResponseEntity.noContent().build();

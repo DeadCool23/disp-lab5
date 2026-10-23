@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm
+data:
+  {{- range $path, $_ := .Files.Glob "files/*" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}

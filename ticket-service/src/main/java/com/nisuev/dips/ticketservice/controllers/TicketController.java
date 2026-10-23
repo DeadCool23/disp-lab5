@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,7 +27,7 @@ public class TicketController {
 
     @GetMapping
     @Operation(summary = "Список билетов пользователя")
-    public ResponseEntity<List<TicketResponse>> list(@RequestHeader("X-User-Name") String username) {
+    public ResponseEntity<List<TicketResponse>> list(@AuthenticationPrincipal(expression = "claims['preferred_username']") String username) {
         return ResponseEntity.ok(ticketService.getAllByUsername(username));
     }
 
@@ -34,13 +35,13 @@ public class TicketController {
     @Operation(summary = "Билет по UUID")
     @ApiResponse(responseCode = "404", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public ResponseEntity<TicketResponse> get(@PathVariable UUID ticketUid,
-                                              @RequestHeader("X-User-Name") String username) {
+                                              @AuthenticationPrincipal(expression = "claims['preferred_username']") String username) {
         return ResponseEntity.ok(ticketService.getByUidAndUsername(ticketUid, username));
     }
 
     @PostMapping
     @Operation(summary = "Создать билет")
-    public ResponseEntity<TicketResponse> create(@RequestHeader("X-User-Name") String username,
+    public ResponseEntity<TicketResponse> create(@AuthenticationPrincipal(expression = "claims['preferred_username']") String username,
                                                  @RequestBody TicketCreateRequest request) {
         return ResponseEntity.ok(ticketService.create(username, request));
     }
@@ -50,7 +51,7 @@ public class TicketController {
     @ApiResponse(responseCode = "204", description = "Билет отменён")
     @ApiResponse(responseCode = "404", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     public ResponseEntity<Void> cancel(@PathVariable UUID ticketUid,
-                                       @RequestHeader("X-User-Name") String username) {
+                                       @AuthenticationPrincipal(expression = "claims['preferred_username']") String username) {
         ticketService.cancel(ticketUid, username);
         return ResponseEntity.noContent().build();
     }

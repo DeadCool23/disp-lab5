@@ -1,6 +1,13 @@
 server:
   port: 8080
 
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWK_SET_URI:http://keycloak:8080/realms/lab5/protocol/openid-connect/certs}
+
 services:
   flight-url: ${FLIGHT_SERVICE_URL:http://flight-service:8060}
   ticket-url: ${TICKET_SERVICE_URL:http://ticket-service:8070}
@@ -38,6 +45,5 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /api/v1/docs
-    url: /openapi.yaml
     disable-swagger-default-url: true
     try-it-out-enabled: true

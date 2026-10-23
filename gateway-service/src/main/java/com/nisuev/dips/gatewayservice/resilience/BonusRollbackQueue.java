@@ -6,7 +6,10 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -16,7 +19,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 @Component
 public class BonusRollbackQueue {
 
-    public record Task(String username, UUID ticketUid) {}
+    public record Task(Authentication authentication, UUID ticketUid) {}
 
     private final BlockingQueue<Task> queue = new LinkedBlockingQueue<>();
     private final BonusRepository bonusRepository;
@@ -29,8 +32,8 @@ public class BonusRollbackQueue {
         this.retryDelayMs = retryDelayMs;
     }
 
-    public void enqueue(String username, UUID ticketUid) {
-        queue.offer(new Task(username, ticketUid));
+    public void enqueue(UUID ticketUid) {
+        queue.offer(new Task(SecurityContextHolder.getContext().getAuthentication(), ticketUid));
     }
 
     public int size() {
@@ -65,15 +68,21 @@ public class BonusRollbackQueue {
     }
 
     private boolean tryRollback(Task task) {
+        SecurityContextHolder.getContext().setAuthentication(task.authentication());
         try {
-            bonusRepository.rollback(task.username(), task.ticketUid());
+            bonusRepository.rollback(task.ticketUid());
             log.info("Deferred bonus rollback done for ticket {}", task.ticketUid());
             return true;
         } catch (ServiceUnavailableException e) {
             return false;
+        } catch (HttpClientErrorException.Unauthorized e) {
+            log.error("Deferred bonus rollback dropped for ticket {}: token expired", task.ticketUid());
+            return true;
         } catch (RuntimeException e) {
             log.warn("Deferred bonus rollback failed for ticket {}: {}", task.ticketUid(), e.getMessage());
             return false;
+        } finally {
+            SecurityContextHolder.clearContext();
         }
     }
 }

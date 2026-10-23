@@ -29,21 +29,21 @@ public class GatewayService {
         return flightRepository.findAll(page, size);
     }
 
-    public PrivilegeInfoResponse getPrivilege(String username) {
-        return bonusRepository.getPrivilege(username);
+    public PrivilegeInfoResponse getPrivilege() {
+        return bonusRepository.getPrivilege();
     }
 
-    public List<TicketResponse> getTickets(String username) {
-        return ticketRepository.findAllByUsername(username).stream()
+    public List<TicketResponse> getTickets() {
+        return ticketRepository.findAll().stream()
                 .map(this::enrich)
                 .toList();
     }
 
-    public TicketResponse getTicket(UUID ticketUid, String username) {
-        return enrich(ticketRepository.findByUidAndUsername(ticketUid, username));
+    public TicketResponse getTicket(UUID ticketUid) {
+        return enrich(ticketRepository.findByUid(ticketUid));
     }
 
-    public TicketPurchaseResponse purchase(String username, TicketPurchaseRequest request) {
+    public TicketPurchaseResponse purchase(TicketPurchaseRequest request) {
         FlightResponse flight;
         try {
             flight = flightRepository.findByFlightNumber(request.getFlightNumber());
@@ -52,18 +52,16 @@ public class GatewayService {
         }
 
         TicketInternalResponse ticket = ticketRepository.create(
-                username,
                 new TicketCreateRequest(request.getFlightNumber(), request.getPrice())
         );
 
         PrivilegeApplyResponse bonus;
         try {
             bonus = bonusRepository.apply(
-                    username,
                     new PrivilegeApplyRequest(ticket.getTicketUid(), request.getPrice(), request.getPaidFromBalance())
             );
         } catch (RuntimeException e) {
-            rollbackTicket(ticket, username);
+            rollbackTicket(ticket);
             throw e;
         }
 
@@ -81,20 +79,20 @@ public class GatewayService {
         );
     }
 
-    public void cancelTicket(UUID ticketUid, String username) {
-        ticketRepository.cancel(ticketUid, username);
+    public void cancelTicket(UUID ticketUid) {
+        ticketRepository.cancel(ticketUid);
         try {
-            bonusRepository.rollback(username, ticketUid);
+            bonusRepository.rollback(ticketUid);
         } catch (ServiceUnavailableException e) {
-            rollbackQueue.enqueue(username, ticketUid);
+            rollbackQueue.enqueue(ticketUid);
         }
     }
 
-    public UserInfoResponse getUserInfo(String username) {
-        List<TicketResponse> tickets = getTickets(username);
+    public UserInfoResponse getUserInfo() {
+        List<TicketResponse> tickets = getTickets();
         PrivilegeShortInfo privilege;
         try {
-            PrivilegeInfoResponse privilegeInfo = bonusRepository.getPrivilege(username);
+            PrivilegeInfoResponse privilegeInfo = bonusRepository.getPrivilege();
             privilege = new PrivilegeShortInfo(privilegeInfo.getBalance(), privilegeInfo.getStatus());
         } catch (ServiceUnavailableException e) {
             privilege = new PrivilegeShortInfo();
@@ -120,9 +118,9 @@ public class GatewayService {
         );
     }
 
-    private void rollbackTicket(TicketInternalResponse ticket, String username) {
+    private void rollbackTicket(TicketInternalResponse ticket) {
         try {
-            ticketRepository.cancel(UUID.fromString(ticket.getTicketUid()), username);
+            ticketRepository.cancel(UUID.fromString(ticket.getTicketUid()));
         } catch (RuntimeException e) {
             log.error("Failed to rollback ticket {}: {}", ticket.getTicketUid(), e.getMessage());
         }

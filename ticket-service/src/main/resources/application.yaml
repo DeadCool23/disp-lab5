@@ -1,6 +1,11 @@
 server:
   port: 8070
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWK_SET_URI:http://keycloak:8080/realms/lab5/protocol/openid-connect/certs}
   datasource:
     url: jdbc:postgresql://postgres:5432/tickets
     username: program

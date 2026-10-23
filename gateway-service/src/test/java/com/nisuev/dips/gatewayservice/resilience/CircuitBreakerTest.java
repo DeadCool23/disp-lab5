@@ -77,7 +77,7 @@ class CircuitBreakerTest {
         when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(), any(Class.class)))
                 .thenThrow(new ResourceAccessException("down"));
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(() -> bonusRepository.getPrivilege("u"))
+            assertThatThrownBy(() -> bonusRepository.getPrivilege())
                     .isInstanceOf(ServiceUnavailableException.class);
         }
         when(restTemplate.getForObject(anyString(), any(Class.class), any(Object[].class)))
@@ -93,7 +93,7 @@ class CircuitBreakerTest {
         when(restTemplate.exchange(anyString(), any(HttpMethod.class), any(), any(Class.class)))
                 .thenThrow(new ResourceAccessException("down"));
 
-        assertThatThrownBy(() -> bonusRepository.rollback("u", java.util.UUID.randomUUID()))
+        assertThatThrownBy(() -> bonusRepository.rollback(java.util.UUID.randomUUID()))
                 .isInstanceOf(ServiceUnavailableException.class)
                 .hasMessage("Bonus Service unavailable");
         assertThat(registry.circuitBreaker("bonus").getMetrics().getNumberOfBufferedCalls()).isZero();

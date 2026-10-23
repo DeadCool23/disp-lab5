@@ -51,14 +51,13 @@ class GatewayServiceTest {
 
         TicketInternalResponse ticket = new TicketInternalResponse(
                 UUID.randomUUID().toString(), "AFL031", 1500, "PAID");
-        when(ticketRepository.create(eq("Test Max"), any(TicketCreateRequest.class))).thenReturn(ticket);
+        when(ticketRepository.create(any(TicketCreateRequest.class))).thenReturn(ticket);
 
         PrivilegeApplyResponse bonus = new PrivilegeApplyResponse(
                 0, 1500, new PrivilegeShortInfo(150, "BRONZE"));
-        when(bonusRepository.apply(eq("Test Max"), any(PrivilegeApplyRequest.class))).thenReturn(bonus);
+        when(bonusRepository.apply(any(PrivilegeApplyRequest.class))).thenReturn(bonus);
 
         TicketPurchaseResponse response = gatewayService.purchase(
-                "Test Max",
                 new TicketPurchaseRequest("AFL031", 1500, false)
         );
 
@@ -74,7 +73,7 @@ class GatewayServiceTest {
         when(flightRepository.findByFlightNumber("XXX")).thenThrow(new NotFoundException("Flight not found"));
 
         assertThatThrownBy(() -> gatewayService.purchase(
-                "User", new TicketPurchaseRequest("XXX", 100, false)))
+                new TicketPurchaseRequest("XXX", 100, false)))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -82,22 +81,22 @@ class GatewayServiceTest {
     void cancelTicket_callsTicketAndBonus() {
         UUID uid = UUID.randomUUID();
 
-        gatewayService.cancelTicket(uid, "Test Max");
+        gatewayService.cancelTicket(uid);
 
-        verify(ticketRepository).cancel(uid, "Test Max");
-        verify(bonusRepository).rollback("Test Max", uid);
+        verify(ticketRepository).cancel(uid);
+        verify(bonusRepository).rollback(uid);
     }
 
     @Test
     void getTickets_enrichesWithFlightData() {
         TicketInternalResponse ticket = new TicketInternalResponse(
                 "uid-1", "AFL031", 1500, "PAID");
-        when(ticketRepository.findAllByUsername("User")).thenReturn(List.of(ticket));
+        when(ticketRepository.findAll()).thenReturn(List.of(ticket));
         when(flightRepository.findByFlightNumber("AFL031")).thenReturn(
                 new FlightResponse("AFL031", "Санкт-Петербург Пулково", "Москва Шереметьево",
                         "2021-10-08 20:00", 1500));
 
-        List<TicketResponse> result = gatewayService.getTickets("User");
+        List<TicketResponse> result = gatewayService.getTickets();
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getFromAirport()).isEqualTo("Санкт-Петербург Пулково");
@@ -109,47 +108,47 @@ class GatewayServiceTest {
         when(flightRepository.findByFlightNumber("AFL031")).thenReturn(
                 new FlightResponse("AFL031", "A", "B", "2021-10-08 20:00", 1500));
         UUID uid = UUID.randomUUID();
-        when(ticketRepository.create(eq("User"), any(TicketCreateRequest.class)))
+        when(ticketRepository.create(any(TicketCreateRequest.class)))
                 .thenReturn(new TicketInternalResponse(uid.toString(), "AFL031", 1500, "PAID"));
-        when(bonusRepository.apply(eq("User"), any(PrivilegeApplyRequest.class)))
+        when(bonusRepository.apply(any(PrivilegeApplyRequest.class)))
                 .thenThrow(new ServiceUnavailableException("Bonus Service unavailable"));
 
         assertThatThrownBy(() -> gatewayService.purchase(
-                "User", new TicketPurchaseRequest("AFL031", 1500, false)))
+                new TicketPurchaseRequest("AFL031", 1500, false)))
                 .isInstanceOf(ServiceUnavailableException.class)
                 .hasMessage("Bonus Service unavailable");
 
-        verify(ticketRepository).cancel(uid, "User");
+        verify(ticketRepository).cancel(uid);
     }
 
     @Test
     void cancelTicket_enqueuesBonusRollbackWhenBonusUnavailable() {
         UUID uid = UUID.randomUUID();
         doThrow(new ServiceUnavailableException("Bonus Service unavailable"))
-                .when(bonusRepository).rollback("User", uid);
+                .when(bonusRepository).rollback(uid);
 
-        gatewayService.cancelTicket(uid, "User");
+        gatewayService.cancelTicket(uid);
 
-        verify(rollbackQueue).enqueue("User", uid);
+        verify(rollbackQueue).enqueue(uid);
     }
 
     @Test
     void cancelTicket_doesNotEnqueueWhenBonusAvailable() {
         UUID uid = UUID.randomUUID();
 
-        gatewayService.cancelTicket(uid, "User");
+        gatewayService.cancelTicket(uid);
 
-        verify(rollbackQueue, never()).enqueue(any(), any());
+        verify(rollbackQueue, never()).enqueue(any());
     }
 
     @Test
     void getTickets_returnsFallbackFlightFieldsWhenFlightUnavailable() {
-        when(ticketRepository.findAllByUsername("User")).thenReturn(
+        when(ticketRepository.findAll()).thenReturn(
                 List.of(new TicketInternalResponse("uid-1", "AFL031", 1500, "PAID")));
         when(flightRepository.findByFlightNumber("AFL031"))
                 .thenThrow(new ServiceUnavailableException("Flight Service unavailable"));
 
-        List<TicketResponse> result = gatewayService.getTickets("User");
+        List<TicketResponse> result = gatewayService.getTickets();
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getFlightNumber()).isEqualTo("AFL031");
@@ -160,20 +159,20 @@ class GatewayServiceTest {
 
     @Test
     void getTickets_failsWhenTicketServiceUnavailable() {
-        when(ticketRepository.findAllByUsername("User"))
+        when(ticketRepository.findAll())
                 .thenThrow(new ServiceUnavailableException("Ticket Service unavailable"));
 
-        assertThatThrownBy(() -> gatewayService.getTickets("User"))
+        assertThatThrownBy(() -> gatewayService.getTickets())
                 .isInstanceOf(ServiceUnavailableException.class);
     }
 
     @Test
     void getUserInfo_returnsEmptyPrivilegeWhenBonusUnavailable() {
-        when(ticketRepository.findAllByUsername("User")).thenReturn(List.of());
-        when(bonusRepository.getPrivilege("User"))
+        when(ticketRepository.findAll()).thenReturn(List.of());
+        when(bonusRepository.getPrivilege())
                 .thenThrow(new ServiceUnavailableException("Bonus Service unavailable"));
 
-        UserInfoResponse result = gatewayService.getUserInfo("User");
+        UserInfoResponse result = gatewayService.getUserInfo();
 
         assertThat(result.getTickets()).isEmpty();
         assertThat(result.getPrivilege().getBalance()).isNull();
@@ -182,10 +181,10 @@ class GatewayServiceTest {
 
     @Test
     void getPrivilege_failsWhenBonusUnavailable() {
-        when(bonusRepository.getPrivilege("User"))
+        when(bonusRepository.getPrivilege())
                 .thenThrow(new ServiceUnavailableException("Bonus Service unavailable"));
 
-        assertThatThrownBy(() -> gatewayService.getPrivilege("User"))
+        assertThatThrownBy(() -> gatewayService.getPrivilege())
                 .isInstanceOf(ServiceUnavailableException.class);
     }
 }
