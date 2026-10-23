@@ -1,0 +1,4 @@
+image: library/postgres:13
+password: postgres
+storage: 2Gi
+storageClass: ""

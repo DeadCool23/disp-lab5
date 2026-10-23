@@ -1,0 +1,43 @@
+server:
+  port: 8080
+
+services:
+  flight-url: ${FLIGHT_SERVICE_URL:http://flight-service:8060}
+  ticket-url: ${TICKET_SERVICE_URL:http://ticket-service:8070}
+  bonus-url: ${BONUS_SERVICE_URL:http://bonus-service:8050}
+
+resilience:
+  http:
+    connect-timeout-ms: 1000
+    read-timeout-ms: 3000
+  rollback-retry-delay-ms: 500
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 6
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 5s
+        permitted-number-of-calls-in-half-open-state: 2
+        record-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+    instances:
+      flight:
+        base-config: default
+      ticket:
+        base-config: default
+      bonus:
+        base-config: default
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /api/v1/docs
+    url: /openapi.yaml
+    disable-swagger-default-url: true
+    try-it-out-enabled: true

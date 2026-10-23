@@ -1,0 +1,7 @@
+appName: bonus
+port: 8050
+image:
+  repository: DOCKER_USER/bonus-service
+env:
+  JAVA_TOOL_OPTIONS: "-Xmx256m -XX:TieredStopAtLevel=1 -XX:+UseSerialGC -Xshare:auto"
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/privileges

@@ -1,0 +1,7 @@
+appName: ticket
+port: 8070
+image:
+  repository: DOCKER_USER/ticket-service
+env:
+  JAVA_TOOL_OPTIONS: "-Xmx256m -XX:TieredStopAtLevel=1 -XX:+UseSerialGC -Xshare:auto"
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tickets

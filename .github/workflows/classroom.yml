@@ -1,0 +1,90 @@
+name: GitHub Classroom Workflow
+on:
+  push:
+    branches: [ master ]
+jobs:
+  build:
+    name: Autograding
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@v2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Unit tests flight-service
+        run: cd flight-service && chmod +x gradlew && ./gradlew test --no-daemon
+
+      - name: Unit tests ticket-service
+        run: cd ticket-service && chmod +x gradlew && ./gradlew test --no-daemon
+
+      - name: Unit tests bonus-service
+        run: cd bonus-service && chmod +x gradlew && ./gradlew test --no-daemon
+
+      - name: Unit tests gateway-service
+        run: cd gateway-service && chmod +x gradlew && ./gradlew test --no-daemon
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build images
+        timeout-minutes: 15
+        run: docker compose build
+
+      - name: Push images
+        timeout-minutes: 10
+        run: |
+          docker compose push
+          docker images | grep -- "-service"
+
+      - name: Set up kubectl and helm
+        uses: azure/setup-helm@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+          kubectl get nodes
+
+      - name: Deploy postgres
+        run: |
+          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          helm upgrade --install postgres charts/postgres -n $NAMESPACE --wait --timeout 3m
+
+      - name: Deploy services
+        run: |
+          for svc in flight-service ticket-service bonus-service gateway-service; do
+            helm upgrade --install $svc charts/service -n $NAMESPACE \
+              -f k8s/$svc.yaml \
+              --set image.repository=$DOCKER_USER/$svc \
+              --set image.tag=$TAG \
+              --wait --timeout 5m
+          done
+
+      - name: Wait before services are ready
+        run: kubectl wait -n $NAMESPACE -l app.kubernetes.io/name=gateway pod --for=condition=Ready --timeout 3m
+
+      - name: Set baseUrl to ingress address
+        run: |
+          IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          echo "Ingress: $IP"
+          sed -i "s#http://localhost:8080#http://$IP#" $VARIANT/postman/environment.json
+      
+      - name: Run API Tests
+        uses: matt-ball/newman-action@master
+        with:
+          collection: <variant>/postman/collection.json
+          environment: <variant>/postman/environment.json
+          delayRequest: 100
+          reporters: '[ "cli" ]'
